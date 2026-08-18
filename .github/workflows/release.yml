@@ -1,0 +1,80 @@
+name: Release
+
+# 全自动发版流水线:
+#   每天定时检查 npm 上 @deepseek-ai/dsh 是否有新版本;
+#   有 → 重新打包 Windows 安装包(内置新版 dsh)并发布 GitHub Release;
+#   老用户的客户端通过 electron-updater 自动收到更新。
+on:
+  schedule:
+    - cron: '0 2 * * *' # 每天 10:00 (北京时间)
+  workflow_dispatch:
+    inputs:
+      force:
+        description: '忽略版本比对, 强制重新发版'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  check-update:
+    runs-on: ubuntu-latest
+    outputs:
+      should_build: ${{ steps.check.outputs.should_build }}
+      dsh_version: ${{ steps.check.outputs.dsh_version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: check
+        run: |
+          set -e
+          LATEST=$(curl -fsSL "https://registry.npmjs.org/@deepseek-ai/dsh/latest" | jq -r .version)
+          CURRENT=$(cat dsh-runtime.version | tr -d '[:space:]')
+          echo "npm 最新版本: $LATEST / 仓库内置版本: $CURRENT"
+          echo "dsh_version=$LATEST" >> "$GITHUB_OUTPUT"
+          if [ "${{ github.event.inputs.force }}" = "true" ] || [ "$LATEST" != "$CURRENT" ]; then
+            echo "should_build=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_build=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  build-win:
+    needs: check-update
+    if: needs.check-update.outputs.should_build == 'true'
+    runs-on: windows-latest
+    env:
+      DSH_VERSION: ${{ needs.check-update.outputs.dsh_version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Prepare runtime (portable Node + dsh)
+        run: node scripts/prepare-runtime.mjs --force
+
+      - name: Bump version & record dsh version
+        run: |
+          node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));const [a,b,c]=p.version.split('.').map(Number);p.version=[a,b,c+1].join('.');fs.writeFileSync('package.json',JSON.stringify(p,null,2)+'\n');console.log('新版本:',p.version)"
+          node -e "require('fs').writeFileSync('dsh-runtime.version', process.env.DSH_VERSION + '\n')"
+
+      - name: Build & publish release
+        run: pnpm exec electron-builder --win --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Commit version bump
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json dsh-runtime.version
+          git commit -m "chore(release): bundle dsh $DSH_VERSION [skip ci]"
+          git push

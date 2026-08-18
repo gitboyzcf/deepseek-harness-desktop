@@ -1,0 +1,146 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', 'Microsoft YaHei', system-ui, sans-serif;
+  background: linear-gradient(135deg, #0a1120 0%, #0f1e38 55%, #0a2540 100%);
+  color: #d7e6f5;
+  min-height: 100vh;
+  overflow: hidden;
+  user-select: none;
+}
+
+#app {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+}
+
+.glow {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(90px);
+  opacity: 0.5;
+  pointer-events: none;
+}
+.glow-a {
+  width: 420px;
+  height: 420px;
+  background: #0e63b6;
+  top: -120px;
+  left: -100px;
+}
+.glow-b {
+  width: 380px;
+  height: 380px;
+  background: #0891b2;
+  bottom: -140px;
+  right: -80px;
+}
+
+.card {
+  position: relative;
+  width: 460px;
+  padding: 48px 40px 32px;
+  border-radius: 16px;
+  background: rgba(16, 32, 56, 0.72);
+  border: 1px solid rgba(56, 189, 248, 0.18);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(12px);
+  text-align: center;
+}
+
+.brand h1 {
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  margin-top: 20px;
+}
+.brand h1 span {
+  color: #38bdf8;
+}
+.subtitle {
+  margin-top: 6px;
+  font-size: 13px;
+  color: #7d93ad;
+  letter-spacing: 4px;
+}
+
+.ring {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto;
+  border-radius: 50%;
+  border: 3px solid rgba(56, 189, 248, 0.15);
+  border-top-color: #38bdf8;
+  animation: spin 1s linear infinite;
+}
+.ring.error {
+  animation: none;
+  border-color: rgba(248, 113, 113, 0.4);
+  border-top-color: #f87171;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.status {
+  margin-top: 24px;
+  font-size: 14px;
+  color: #a8c4de;
+  min-height: 22px;
+  word-break: break-all;
+}
+.status.error {
+  color: #f87171;
+}
+
+.retry {
+  margin-top: 18px;
+  padding: 8px 36px;
+  font-size: 14px;
+  color: #06121f;
+  background: linear-gradient(90deg, #38bdf8, #22d3ee);
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+.retry:hover {
+  transform: scale(1.05);
+}
+.retry.hidden {
+  display: none;
+}
+
+.logs {
+  margin-top: 28px;
+  text-align: left;
+}
+.logs summary {
+  font-size: 12px;
+  color: #5d7590;
+  cursor: pointer;
+  outline: none;
+}
+.logs pre {
+  margin-top: 8px;
+  max-height: 160px;
+  overflow-y: auto;
+  font-size: 11px;
+  line-height: 1.6;
+  color: #6f8db0;
+  background: rgba(4, 12, 24, 0.6);
+  border-radius: 8px;
+  padding: 10px 12px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  user-select: text;
+}

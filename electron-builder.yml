@@ -1,0 +1,45 @@
+appId: io.github.gitboyzcf.deepseek-harness-desktop
+productName: DeepSeek Harness
+directories:
+  buildResources: build
+files:
+  - '!**/.vscode/*'
+  - '!src/*'
+  - '!scripts/*'
+  - '!electron.vite.config.{js,ts,mjs,cjs}'
+  - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md,IDEA.md}'
+  - '!{.env,.env.*,.npmrc,pnpm-lock.yaml,dsh-runtime.version}'
+  - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+  - '!resources/runtime/**'
+extraResources:
+  - from: resources/runtime
+    to: runtime
+asarUnpack:
+  - resources/**
+win:
+  executableName: DeepSeekHarness
+  target:
+    - nsis
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: always
+  shortcutName: DeepSeek Harness
+  artifactName: DeepSeek-Harness-Setup-${version}.${ext}
+mac:
+  entitlementsInherit: build/entitlements.mac.plist
+  notarize: false
+dmg:
+  artifactName: DeepSeek-Harness-${version}.${ext}
+linux:
+  target:
+    - AppImage
+  category: Utility
+appImage:
+  artifactName: DeepSeek-Harness-${version}.${ext}
+npmRebuild: false
+publish:
+  provider: github
+  owner: gitboyzcf
+  repo: deepseek-harness-desktop

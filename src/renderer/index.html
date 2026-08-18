@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>DeepSeek Harness</title>
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:"
+    />
+    <link href="./assets/main.css" type="text/css" rel="stylesheet" />
+  </head>
+  <body>
+    <div id="app">
+      <div class="glow glow-a"></div>
+      <div class="glow glow-b"></div>
+
+      <div class="card">
+        <div class="brand">
+          <div class="ring" id="ring"></div>
+          <h1>DeepSeek <span>Harness</span></h1>
+          <p class="subtitle">桌面客户端</p>
+        </div>
+
+        <div class="status" id="status">正在初始化…</div>
+
+        <button id="retry" class="retry hidden" type="button">重试</button>
+
+        <details class="logs">
+          <summary>运行日志</summary>
+          <pre id="log"></pre>
+        </details>
+      </div>
+    </div>
+
+    <script type="module" src="./src/renderer.ts"></script>
+  </body>
+</html>
