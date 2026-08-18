@@ -66,6 +66,9 @@ jobs:
           node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));const [a,b,c]=p.version.split('.').map(Number);p.version=[a,b,c+1].join('.');fs.writeFileSync('package.json',JSON.stringify(p,null,2)+'\n');console.log('新版本:',p.version)"
           node -e "require('fs').writeFileSync('dsh-runtime.version', process.env.DSH_VERSION + '\n')"
 
+      - name: Build app (electron-vite)
+        run: pnpm build
+
       - name: Build & publish release
         run: pnpm exec electron-builder --win --publish always
         env:
