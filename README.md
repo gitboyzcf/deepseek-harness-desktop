@@ -1,5 +1,9 @@
 # DeepSeek Harness Desktop
 
+<p>
+  <img src="build/icon.png" width="96" alt="logo" />
+</p>
+
 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的桌面客户端(Electron 套壳)。
 
 **一台全新的电脑, 只需要安装这一个客户端, 双击图标即可使用 DeepSeek Harness 的 Web 界面** —— 不需要装 Node.js、不需要开终端、不需要敲任何命令。

@@ -71,23 +71,39 @@ body {
   letter-spacing: 4px;
 }
 
-.ring {
-  width: 64px;
-  height: 64px;
-  margin: 0 auto;
-  border-radius: 50%;
-  border: 3px solid rgba(56, 189, 248, 0.15);
-  border-top-color: #38bdf8;
-  animation: spin 1s linear infinite;
+.logo {
+  width: 96px;
+  height: 96px;
+  border-radius: 22px;
+  box-shadow: 0 8px 32px rgba(34, 211, 238, 0.35);
 }
-.ring.error {
+
+.bar {
+  margin: 18px auto 0;
+  width: 220px;
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(56, 189, 248, 0.12);
+  overflow: hidden;
+}
+.bar-fill {
+  width: 40%;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #38bdf8, #22d3ee);
+  animation: slide 1.2s ease-in-out infinite;
+}
+.bar.error .bar-fill {
   animation: none;
-  border-color: rgba(248, 113, 113, 0.4);
-  border-top-color: #f87171;
+  width: 100%;
+  background: #f87171;
 }
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
+@keyframes slide {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(550%);
   }
 }
 

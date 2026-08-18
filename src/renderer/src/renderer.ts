@@ -1,7 +1,7 @@
 const statusEl = document.getElementById('status')!
 const logEl = document.getElementById('log')!
 const retryBtn = document.getElementById('retry')!
-const ringEl = document.getElementById('ring')!
+const barEl = document.getElementById('bar')!
 
 const MAX_LOG_LINES = 200
 let logLines: string[] = []
@@ -16,7 +16,7 @@ function setStatus(status: DshStatus): void {
   statusEl.textContent = status.message
   const isError = status.state === 'error'
   statusEl.classList.toggle('error', isError)
-  ringEl.classList.toggle('error', isError)
+  barEl.classList.toggle('error', isError)
   retryBtn.classList.toggle('hidden', !isError)
 }
 
@@ -32,7 +32,7 @@ window.dsh.onLog(appendLog)
 
 retryBtn.addEventListener('click', () => {
   retryBtn.classList.add('hidden')
-  ringEl.classList.remove('error')
+  barEl.classList.remove('error')
   statusEl.classList.remove('error')
   statusEl.textContent = '正在重启服务…'
   window.dsh.retry()
