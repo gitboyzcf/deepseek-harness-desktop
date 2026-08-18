@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
 import { join } from 'node:path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { autoUpdater } from 'electron-updater'
@@ -132,14 +132,7 @@ app.whenReady().then(() => {
 
   createWindow()
   bootDsh()
-
-  // 客户端自身的更新(仅安装包环境; 发布后由 GitHub Releases 提供)
-  if (app.isPackaged) {
-    autoUpdater.checkForUpdatesAndNotify().catch((err: Error) => {
-      // 尚无 Release / 网络不可达均属正常, 静默记录即可
-      sendLog(`[客户端更新] ${err.message}`)
-    })
-  }
+  setupAutoUpdater()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -149,6 +142,49 @@ app.whenReady().then(() => {
     }
   })
 })
+
+/**
+ * 客户端自身更新: 每次启动检查 → 发现新版静默下载 → 下载完成弹窗询问是否立即重启
+ * (仅安装包环境; 更新源为 GitHub Releases)
+ */
+function setupAutoUpdater(): void {
+  if (!app.isPackaged) return
+
+  autoUpdater.autoDownload = true // 发现新版即后台静默下载
+  autoUpdater.autoInstallOnAppQuit = true // 用户选"稍后"时, 退出自动安装
+
+  autoUpdater.on('update-available', (info) => {
+    sendLog(`[客户端更新] 发现新版本 v${info.version}, 后台静默下载中…`)
+  })
+  autoUpdater.on('update-downloaded', async (info) => {
+    sendLog(`[客户端更新] v${info.version} 下载完成`)
+    const win = mainWindow
+    const options = {
+      type: 'info' as const,
+      title: '更新就绪',
+      message: `新版本 v${info.version} 已就绪`,
+      detail: '立即重启完成更新; 选择"稍后"则会在下次启动时自动生效。',
+      buttons: ['立即重启更新', '稍后'],
+      defaultId: 0,
+      cancelId: 1
+    }
+    const { response } = win
+      ? await dialog.showMessageBox(win, options)
+      : await dialog.showMessageBox(options)
+    if (response === 0) {
+      manager?.stop()
+      autoUpdater.quitAndInstall()
+    }
+  })
+  autoUpdater.on('error', (err) => {
+    // 尚无 Release / 网络不可达均属正常, 记日志即可
+    sendLog(`[客户端更新] ${err.message}`)
+  })
+
+  autoUpdater.checkForUpdates().catch(() => {
+    /* 错误已在 error 事件里记录 */
+  })
+}
 
 // 退出前务必杀掉 dsh 子进程树, 防止端口/进程残留
 app.on('before-quit', () => {
