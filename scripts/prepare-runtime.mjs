@@ -144,6 +144,9 @@ function prepareDsh() {
   )
   fs.writeFileSync(VERSION_FILE, pkg.version)
   console.log(`[prepare] dsh v${pkg.version} 预装完成`)
+
+  // 精简运行时体积(删除 .map/.d.ts/docs/tests/arm64 产物等)
+  execFileSync(process.execPath, [path.join(ROOT, 'scripts', 'prune-runtime.mjs')], { stdio: 'inherit' })
 }
 
 await prepareNode()

@@ -39,6 +39,10 @@ linux:
 appImage:
   artifactName: DeepSeek-Harness-${version}.${ext}
 npmRebuild: false
+# Chromium 语言文件只保留中英(默认 90+ 种语言, 占 ~44MB)
+electronLanguages:
+  - zh-CN
+  - en-US
 publish:
   provider: github
   owner: gitboyzcf
