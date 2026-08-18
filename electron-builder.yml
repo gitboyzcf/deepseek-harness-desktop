@@ -43,3 +43,4 @@ publish:
   provider: github
   owner: gitboyzcf
   repo: deepseek-harness-desktop
+  releaseType: release # 直接发布正式 Release(默认是 draft, 需要人工点发布)
