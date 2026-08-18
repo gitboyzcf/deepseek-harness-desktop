@@ -25,10 +25,12 @@ if (!gotLock) {
 }
 
 function sendStatus(status: DshStatus): void {
+  console.log('[dsh:status]', status.state, status.message, status.url ?? '')
   mainWindow?.webContents.send('dsh:status', status)
 }
 
 function sendLog(line: string): void {
+  console.log('[dsh:log]', line)
   mainWindow?.webContents.send('dsh:log', line)
 }
 
@@ -133,11 +135,10 @@ app.whenReady().then(() => {
 
   // 客户端自身的更新(仅安装包环境; 发布后由 GitHub Releases 提供)
   if (app.isPackaged) {
-    try {
-      autoUpdater.checkForUpdatesAndNotify()
-    } catch (err) {
-      sendLog(`[客户端更新] 检查失败: ${(err as Error).message}`)
-    }
+    autoUpdater.checkForUpdatesAndNotify().catch((err: Error) => {
+      // 尚无 Release / 网络不可达均属正常, 静默记录即可
+      sendLog(`[客户端更新] ${err.message}`)
+    })
   }
 
   app.on('activate', () => {
@@ -149,8 +150,12 @@ app.whenReady().then(() => {
   })
 })
 
-// 退出前务必杀掉 dsh 子进程树, 防止端口残留
+// 退出前务必杀掉 dsh 子进程树, 防止端口/进程残留
 app.on('before-quit', () => {
+  manager?.stop()
+})
+// before-quit 之外的兜底(异常退出路径)
+process.on('exit', () => {
   manager?.stop()
 })
 
