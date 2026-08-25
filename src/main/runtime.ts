@@ -5,8 +5,8 @@ import path from 'node:path'
 export interface RuntimeInfo {
   /** node 可执行文件路径(不存在时回退为 PATH 中的 node) */
   nodeExe: string
-  /** npm-cli.js 路径(用于 dsh 升级;不存在则为空串) */
-  npmCli: string
+  /** corepack.js 路径(用于经 corepack 调起 pnpm 升级 dsh; 不存在则为空串) */
+  corepackCli: string
   /** dsh 安装目录(包含 node_modules/@deepseek-ai/dsh) */
   dshDir: string
   /** dsh CLI 入口 */
@@ -34,8 +34,12 @@ export function liveRuntimeRoot(): string {
 }
 
 export function inspectRuntime(root: string): RuntimeInfo | null {
-  const dshPkgPath = path.join(root, 'dsh', 'node_modules', '@deepseek-ai', 'dsh', 'package.json')
+  const dshDir = path.join(root, 'dsh')
+  const dshPkgPath = path.join(dshDir, 'node_modules', '@deepseek-ai', 'dsh', 'package.json')
   if (!fs.existsSync(dshPkgPath)) return null
+  // 防半截拷贝: 后台升级的材料化(cpSync)若被中断, 目录里可能有 package.json 但依赖不全,
+  // 盲目采用会让 dsh 一启动就 ERR_MODULE_NOT_FOUND。抽查 bin.js 的首个直接依赖作为完整性探针。
+  if (!fs.existsSync(path.join(dshDir, 'node_modules', 'commander', 'package.json'))) return null
 
   let version = '0.0.0'
   try {
@@ -44,12 +48,27 @@ export function inspectRuntime(root: string): RuntimeInfo | null {
     /* 忽略, 按未知版本处理 */
   }
 
-  const nodeExe = path.join(root, 'node', nodeBinName())
-  const npmCli = path.join(root, 'node', 'node_modules', 'npm', 'bin', 'npm-cli.js')
+  // node 运行时永不随 dsh 升级变化: live 副本不再拷贝 node 目录(省 ~94MB), 回退用安装包内置的。
+  // 布局: Windows 解压后是 node/node.exe; mac/linux 官方包是 node/bin/node
+  const nodeExe =
+    [
+      path.join(root, 'node', nodeBinName()),
+      path.join(root, 'node', 'bin', nodeBinName()),
+      path.join(bundledRuntimeRoot(), 'node', nodeBinName()),
+      path.join(bundledRuntimeRoot(), 'node', 'bin', nodeBinName())
+    ].find((p) => fs.existsSync(p)) ?? nodeBinName()
+  // corepack 随 Node 发行版自带: Windows 在 node/node_modules, mac/linux 在 node/lib/node_modules
+  const corepackCli =
+    [
+      path.join(root, 'node', 'node_modules', 'corepack', 'dist', 'corepack.js'),
+      path.join(root, 'node', 'lib', 'node_modules', 'corepack', 'dist', 'corepack.js'),
+      path.join(bundledRuntimeRoot(), 'node', 'node_modules', 'corepack', 'dist', 'corepack.js'),
+      path.join(bundledRuntimeRoot(), 'node', 'lib', 'node_modules', 'corepack', 'dist', 'corepack.js')
+    ].find((p) => fs.existsSync(p)) ?? ''
 
   return {
-    nodeExe: fs.existsSync(nodeExe) ? nodeExe : nodeBinName(),
-    npmCli: fs.existsSync(npmCli) ? npmCli : '',
+    nodeExe,
+    corepackCli,
     dshDir: path.join(root, 'dsh'),
     dshBin: path.join(root, 'dsh', 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js'),
     version,
@@ -72,7 +91,7 @@ export function resolveRuntime(): RuntimeInfo | null {
   return null
 }
 
-/** 将内置运行时完整拷贝到用户目录(升级前置步骤) */
+/** 将内置运行时拷贝到用户目录(升级前置步骤)。只拷 dsh 目录(node 运行时直接复用内置的); 先拷临时目录再换名, 中断不留半截副本 */
 export function materializeLiveRuntime(): RuntimeInfo {
   const live = liveRuntimeRoot()
   const existing = inspectRuntime(live)
@@ -81,8 +100,17 @@ export function materializeLiveRuntime(): RuntimeInfo {
     return existing
   }
   const bundled = bundledRuntimeRoot()
+  const staging = `${live}.staging-${process.pid}`
+  fs.rmSync(staging, { recursive: true, force: true })
   fs.mkdirSync(path.dirname(live), { recursive: true })
-  fs.cpSync(bundled, live, { recursive: true })
+  try {
+    fs.cpSync(path.join(bundled, 'dsh'), path.join(staging, 'dsh'), { recursive: true })
+    fs.rmSync(live, { recursive: true, force: true })
+    fs.renameSync(staging, live)
+  } catch (err) {
+    fs.rmSync(staging, { recursive: true, force: true })
+    throw err
+  }
   const copied = inspectRuntime(live)
   if (!copied) throw new Error('运行时拷贝失败: 内置运行时缺失或损坏')
   copied.source = 'live'

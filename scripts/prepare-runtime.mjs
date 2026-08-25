@@ -75,6 +75,7 @@ async function prepareNode() {
   const nodeExe = path.join(NODE_DIR, process.platform === 'win32' ? 'node.exe' : 'bin/node')
   if (fs.existsSync(nodeExe) && !force) {
     console.log('[prepare] Node 运行时已存在, 跳过')
+    pruneBundledNpm()
     return
   }
   const { url, name } = await resolveNodeArtifact()
@@ -95,7 +96,30 @@ async function prepareNode() {
   // 临时目录可能在不同盘符(C: → D:), rename 会 EXDEV, 用拷贝代替
   fs.cpSync(path.join(extractDir, inner), NODE_DIR, { recursive: true })
   fs.rmSync(workDir, { recursive: true, force: true })
+  pruneBundledNpm()
   console.log(`[prepare] Node 运行时就绪: ${NODE_DIR}`)
+}
+
+/** 升级链路已切到 corepack→pnpm, 便携 Node 自带的 npm(~11MB)不再使用, 删除节省体积 */
+function pruneBundledNpm() {
+  const victims = [
+    path.join(NODE_DIR, 'node_modules', 'npm'), // win
+    path.join(NODE_DIR, 'lib', 'node_modules', 'npm'), // mac/linux
+    path.join(NODE_DIR, 'npm'),
+    path.join(NODE_DIR, 'npx'),
+    path.join(NODE_DIR, 'npm.cmd'),
+    path.join(NODE_DIR, 'npx.cmd'),
+    path.join(NODE_DIR, 'bin', 'npm'),
+    path.join(NODE_DIR, 'bin', 'npx')
+  ]
+  let removed = 0
+  for (const p of victims) {
+    if (fs.existsSync(p)) {
+      fs.rmSync(p, { recursive: true, force: true })
+      removed++
+    }
+  }
+  if (removed) console.log(`[prepare] 已删除内置 npm (${removed} 项)`)
 }
 
 function prepareDsh() {
@@ -104,7 +128,7 @@ function prepareDsh() {
     console.log(`[prepare] dsh 已预装 (v${stamp}), 跳过`)
     return
   }
-  // 清干净再装: Windows 上 npm 遇到残留 node_modules 容易 ENOTEMPTY/EPERM
+  // 清干净再装: Windows 上包管理器遇到残留 node_modules 容易 ENOTEMPTY/EPERM
   fs.rmSync(DSH_DIR, { recursive: true, force: true })
   fs.mkdirSync(DSH_DIR, { recursive: true })
   fs.writeFileSync(
@@ -114,7 +138,16 @@ function prepareDsh() {
         name: 'dsh-runtime',
         private: true,
         version: '0.0.0',
-        dependencies: { '@deepseek-ai/dsh': 'latest' }
+        // pnpm 默认屏蔽依赖安装脚本; node-pty/koffi 等原生模块必须放行(与 npm 默认行为对齐)
+        pnpm: {
+          onlyBuiltDependencies: [
+            '@deepseek-ai/dsh-subprocess-local',
+            '@google/genai',
+            'koffi',
+            'node-pty',
+            'protobufjs'
+          ]
+        }
       },
       null,
       2
@@ -124,9 +157,17 @@ function prepareDsh() {
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
       console.log(`[prepare] 安装 @deepseek-ai/dsh (第 ${attempt} 次, 可能需要几分钟)…`)
+      // hoisted 布局: 生成传统扁平 node_modules, 打包/运行时拷贝才不依赖 pnpm store 链接
       execFileSync(
-        'npm',
-        ['install', '--omit=dev', '--no-audit', '--no-fund', `--registry=${NPM_REGISTRY}`],
+        'pnpm',
+        [
+          'add',
+          '@deepseek-ai/dsh@latest',
+          '--save-prod',
+          '--save-exact',
+          '--node-linker=hoisted',
+          `--registry=${NPM_REGISTRY}`
+        ],
         { cwd: DSH_DIR, stdio: 'inherit', shell: process.platform === 'win32' }
       )
       lastError = null
@@ -135,6 +176,7 @@ function prepareDsh() {
       lastError = err
       console.warn(`[prepare] 安装失败, 清理后重试: ${err.message}`)
       fs.rmSync(path.join(DSH_DIR, 'node_modules'), { recursive: true, force: true })
+      fs.rmSync(path.join(DSH_DIR, 'pnpm-lock.yaml'), { force: true })
       fs.rmSync(path.join(DSH_DIR, 'package-lock.json'), { force: true })
     }
   }

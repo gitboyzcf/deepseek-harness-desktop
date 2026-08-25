@@ -118,6 +118,16 @@ body {
   color: #f87171;
 }
 
+.hint {
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 1.7;
+  color: #7d93ad;
+}
+.hint.hidden {
+  display: none;
+}
+
 .retry {
   margin-top: 18px;
   padding: 8px 36px;

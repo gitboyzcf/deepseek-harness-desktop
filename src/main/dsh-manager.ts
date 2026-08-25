@@ -1,5 +1,7 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import { EventEmitter } from 'node:events'
+import { existsSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { killTree } from './kill-tree'
 import type { RuntimeInfo } from './runtime'
 
@@ -30,6 +32,23 @@ export class DshManager extends EventEmitter {
     return this.url
   }
 
+  /** 探测当前 dsh 的 web profile 是否支持 --no-open(读定义启动参数的小文件, 一次启动只读一次) */
+  private supportsNoOpen(): boolean {
+    try {
+      const startup = join(
+        this.runtime.dshDir,
+        'node_modules',
+        '@deepseek-ai',
+        'dsh-web-app',
+        'lib',
+        'startup.js'
+      )
+      return existsSync(startup) && readFileSync(startup, 'utf8').includes('no-open')
+    } catch {
+      return false
+    }
+  }
+
   start(): void {
     if (this.child) return
     this.stopping = false
@@ -38,7 +57,10 @@ export class DshManager extends EventEmitter {
 
     let child: ChildProcess
     try {
-      child = spawn(this.runtime.nodeExe, [this.runtime.dshBin, 'web', '--port', '0', '--host', '127.0.0.1'], {
+      // --no-open 是 dsh 0.1.1 才加的: 按能力探测, 老版本传了会直接 unknown option 崩掉
+      const args = [this.runtime.dshBin, 'web', '--port', '0', '--host', '127.0.0.1']
+      if (this.supportsNoOpen()) args.push('--no-open')
+      child = spawn(this.runtime.nodeExe, args, {
         cwd: this.runtime.dshDir,
         stdio: ['ignore', 'pipe', 'pipe'],
         windowsHide: true,
