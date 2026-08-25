@@ -73,14 +73,26 @@ export class DshManager extends EventEmitter {
     }
     this.child = child
 
+    // dsh 就绪前自身一行日志都不打(冷启动时空白可达 30s+), 主进程每 10s 打一次心跳, 避免加载页看起来像死了
+    const startedAt = Date.now()
+    const heartbeat = setInterval(() => {
+      if (this.url) return
+      const waited = Math.round((Date.now() - startedAt) / 1000)
+      this.emit('log', `服务启动中, 已等待 ${waited}s (重启后首次启动需读取运行时文件, 可能较慢)…`)
+    }, 10_000)
+    const stopHeartbeat = (): void => clearInterval(heartbeat)
+    child.once('exit', stopHeartbeat)
+
     const onData = (buf: Buffer): void => {
-      for (const line of buf.toString().split(/\r?\n/)) {
+      // 按换行符切行, 行尾多余的回车会被下面的 trim() 一并去掉
+      for (const line of buf.toString().split('\n')) {
         const trimmed = line.trim()
         if (!trimmed) continue
         this.emit('log', trimmed)
         const m = trimmed.match(READY_PATTERN)
         if (m && !this.url) {
           this.url = m[1]
+          stopHeartbeat()
           if (this.readyTimer) clearTimeout(this.readyTimer)
           this.emitStatus({ state: 'running', message: '服务已就绪', url: this.url })
         }
