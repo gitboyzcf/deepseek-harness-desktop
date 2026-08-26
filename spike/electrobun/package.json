@@ -1,0 +1,8 @@
+{
+  "name": "dsh-electrobun-spike",
+  "private": true,
+  "version": "0.0.0",
+  "devDependencies": {
+    "electrobun": "^2.0.1"
+  }
+}

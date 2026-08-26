@@ -1,0 +1,15 @@
+{
+  "lockfileVersion": 1,
+  "configVersion": 1,
+  "workspaces": {
+    "": {
+      "name": "dsh-electrobun-spike",
+      "devDependencies": {
+        "electrobun": "^2.0.1",
+      },
+    },
+  },
+  "packages": {
+    "electrobun": ["electrobun@2.0.1", "https://registry.npmmirror.com/electrobun/-/electrobun-2.0.1.tgz", { "bin": { "electrobun": "bin/electrobun.cjs" } }, "sha512-1+OjJ0tMemjVrUEsh/AhmxnqUNpyCfJslCbcWOvkogFJuNVMmTlWMzyZem/Ts/7lg8f7ULWu8uuQBsKeGQsu7A=="],
+  }
+}
