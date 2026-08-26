@@ -1,4 +1,19 @@
 {
-  "files": [],
-  "references": [{ "path": "./tsconfig.node.json" }, { "path": "./tsconfig.web.json" }]
+	"extends": "./.hutch/devkit/tsconfig.json",
+	"compilerOptions": {
+		"lib": ["ESNext", "DOM"],
+		"target": "ESNext",
+		"module": "ESNext",
+		"moduleDetection": "force",
+		"moduleResolution": "bundler",
+		"allowImportingTsExtensions": true,
+		"verbatimModuleSyntax": true,
+		"noEmit": true,
+		"strict": true,
+		"skipLibCheck": true,
+		"noFallthroughCasesInSwitch": true,
+		"types": ["bun"]
+	},
+	"include": ["src/**/*", "electrobun.config.ts", "hutch.config.ts"],
+	"exclude": ["node_modules", "build", "dist", "spike"]
 }
