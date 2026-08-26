@@ -1,13 +1,10 @@
 name: Release
 
-# 全自动发版流水线:
+# 全自动发版流水线(electrobun 版):
 #   每天定时检查 npm 上 @deepseek-ai/dsh 是否有新版本;
-#   有 → 在 Windows / macOS / Linux 三个平台原生打包(各平台内置对应平台的便携 Node 与 dsh 原生模块),
-#        发布到同一个 GitHub Release;
-#   老用户的客户端通过 electron-updater 自动收到更新。
-#
-# 注意: 无法在本机交叉构建 —— resources/runtime 里的便携 Node 和 node-pty/koffi/sharp
-#       等原生模块都是平台相关的, 必须在对应平台的 runner 上原生构建。
+#   有 → 在 Windows / macOS / Linux 三个平台原生构建(便携 Node 与 dsh 原生模块都是平台相关的),
+#        安装包发到版本 Release, 差分更新文件(update.json/patch/tar.zst)发到浮动的 latest Release;
+#   老客户端通过内置 Updater 从 latest 通道差分更新。
 on:
   schedule:
     - cron: '0 2 * * *' # 每天 10:00 (北京时间)
@@ -20,6 +17,9 @@ on:
 
 permissions:
   contents: write
+
+env:
+  APP_NAME: DeepSeek-Harness
 
 jobs:
   check-update:
@@ -55,11 +55,11 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            builder-flag: --win
+            artifact-glob: '*.exe'
           - os: macos-latest
-            builder-flag: --mac
+            artifact-glob: '*.tar.zst'
           - os: ubuntu-latest
-            builder-flag: --linux
+            artifact-glob: '*.tar.zst'
     runs-on: ${{ matrix.os }}
     env:
       DSH_VERSION: ${{ needs.check-update.outputs.dsh_version }}
@@ -67,30 +67,47 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
+      - uses: oven-sh/setup-bun@v2
 
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install
+        run: bun install
 
       - name: Prepare runtime (portable Node + dsh, 平台原生)
         run: node scripts/prepare-runtime.mjs --force
 
       - name: Set app version & record dsh version
         run: |
-          node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));p.version=process.env.APP_VERSION;fs.writeFileSync('package.json',JSON.stringify(p,null,2)+'\n');console.log('版本:',p.version)"
+          node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));p.version=process.env.APP_VERSION;fs.writeFileSync('package.json',JSON.stringify(p,null,2)+'\n')"
+          node -e "const fs=require('fs');const f='electrobun.config.ts';let s=fs.readFileSync(f,'utf8');s=s.replace(/version: \"[^\"]+\"/, \`version: \"\${process.env.APP_VERSION}\`\");fs.writeFileSync(f,s)"
           node -e "require('fs').writeFileSync('dsh-runtime.version', process.env.DSH_VERSION + '\n')"
 
-      - name: Build app (electron-vite)
-        run: pnpm build
+      # Windows runner 上 GNU tar 会把 D: 盘符当远程主机, 前插 System32 bsdtar 的 shim
+      - name: tar shim (windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          mkdir -p .ci-shim
+          printf '@"C:\\Windows\\System32\\tar.exe" %%*\n' > .ci-shim/tar.cmd
+          echo "$PWD/.ci-shim" >> "$GITHUB_PATH"
 
-      - name: Build & publish release
-        # 三个矩阵任务并发发布到同一个 Release: electron-builder 对"Release 已存在"有重试处理
-        run: pnpm exec electron-builder ${{ matrix.builder-flag }} --publish always
+      - name: Build (electrobun stable)
+        run: bunx electrobun build --env=stable
+
+      - name: 上传安装包到版本 Release
+        run: |
+          gh release create "v$APP_VERSION" --title "v$APP_VERSION" --notes "dsh $DSH_VERSION" dist/* || true
+          gh release upload "v$APP_VERSION" dist/* --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 上传差分更新文件到浮动 latest Release
+        run: |
+          gh release view latest >/dev/null 2>&1 || gh release create latest --title "latest" --notes "差分更新通道, 客户端自动更新用, 勿手动下载" --latest=false
+          gh release upload latest dist/* --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -109,7 +126,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));p.version=process.env.APP_VERSION;fs.writeFileSync('package.json',JSON.stringify(p,null,2)+'\n')"
+          node -e "const fs=require('fs');const f='electrobun.config.ts';let s=fs.readFileSync(f,'utf8');s=s.replace(/version: \"[^\"]+\"/, \`version: \"\${process.env.APP_VERSION}\`\");fs.writeFileSync(f,s)"
           node -e "require('fs').writeFileSync('dsh-runtime.version', process.env.DSH_VERSION + '\n')"
-          git add package.json dsh-runtime.version
+          git add package.json electrobun.config.ts dsh-runtime.version
           git commit -m "chore(release): v${{ env.APP_VERSION }}, bundle dsh ${{ env.DSH_VERSION }} [skip ci]"
           git push

@@ -24,6 +24,17 @@ let dshLoaded = false;
 const userData = Utils.paths.userData;
 mkdirSync(userData, { recursive: true });
 
+// stable 构建无控制台, 启动关键路径写 boot.log 便于排查
+function bootLogFile(line: string): void {
+	try {
+		writeFileSync(join(userData, "boot.log"), `${new Date().toISOString()} ${line}\n`, {
+			flag: "a",
+		});
+	} catch {
+		/* ignore */
+	}
+}
+
 const LOADING_VIEW = "views://mainview/index.html";
 
 // ---------- RPC: 加载页 ↔ 主进程 ----------
@@ -90,6 +101,7 @@ function showMainWindow(): void {
 
 function bootDsh(): void {
 	const runtime = resolveRuntime(userData);
+	bootLogFile(`resolveRuntime → ${runtime ? `${runtime.source} v${runtime.version} node=${runtime.nodeExe}` : "null"}`);
 	if (!runtime) {
 		sendStatus({
 			state: "error",
@@ -107,6 +119,7 @@ function bootDsh(): void {
 	manager = new DshManager(runtime);
 	manager.on("log", sendLog);
 	manager.on("status", (status: DshStatus) => {
+		bootLogFile(`status=${status.state} ${status.message} ${status.url ?? ""}`);
 		sendStatus(status);
 		if (status.state === "running" && status.url && mainWindow) {
 			dshLoaded = true;
@@ -228,6 +241,11 @@ async function setupAutoUpdater(): Promise<void> {
 // ---------- 启动流程 ----------
 
 async function main(): Promise<void> {
+	bootLogFile(`main() start, argv=${process.argv.join(" ")}`);
+	bootLogFile(
+		`userData=${userData} DSH_RUNTIME=${process.env.DSH_RUNTIME ?? "<unset>"} isPackaged=${app.isPackaged}`,
+	);
+
 	// 单实例: 重复打开时通知已有实例显示窗口, 自己退出
 	const exit = await tryAcquireSingleInstance();
 	if (exit) {

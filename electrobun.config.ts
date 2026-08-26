@@ -28,6 +28,9 @@ export default {
 			// 便携 Node + 预装 dsh 内核(构建前先跑 pnpm prepare:runtime)
 			...(copyRuntime ? { "resources/runtime": "runtime" } : {}),
 		},
+		// 构建输出避开 build/(里面有 git 跟踪的图标等构建资源): 产物进 out/, 发行物进 dist/
+		buildFolder: "out",
+		artifactFolder: "dist",
 		mac: {
 			bundleCEF: false,
 		},
@@ -38,9 +41,9 @@ export default {
 			bundleCEF: false,
 		},
 	},
-	// 差分更新源: GitHub Releases (CI 把 artifacts 传到对应 tag)
+	// 差分更新源: 浮动 latest Release(CI 每次发版把平铺更新文件传到这里, 客户端永远从这里拿最新)
 	release: {
 		baseUrl:
-			"https://github.com/gitboyzcf/deepseek-harness-desktop/releases/download",
+			"https://github.com/gitboyzcf/deepseek-harness-desktop/releases/download/latest",
 	},
 } satisfies ElectrobunConfig;

@@ -6,3 +6,4 @@ out
 *.log*
 # 构建期生成的运行时(portable Node + 预装 dsh), 体积大且不跨平台, 不入库
 resources/runtime/
+.hutch/
