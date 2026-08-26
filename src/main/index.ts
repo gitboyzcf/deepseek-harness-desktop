@@ -298,7 +298,9 @@ function setupAutoUpdater(): void {
       : await dialog.showMessageBox(options)
     if (response === 0) {
       manager?.stop()
-      autoUpdater.quitAndInstall()
+      // isSilent=true 静默安装(否则 NSIS 安装器界面可能被用户关掉导致更新没装上);
+      // isForceRunAfter=true 装完自动重新拉起(默认 false, 用户以为没反应)
+      autoUpdater.quitAndInstall(true, true)
     }
   })
   autoUpdater.on('error', (err) => {
