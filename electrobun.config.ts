@@ -39,6 +39,8 @@ export default {
 		},
 		win: {
 			bundleCEF: false,
+			// 应用图标: 安装器/桌面快捷方式/任务栏; PNG 会被 Hutch 自动转 ICO
+			icon: "resources/icon.png",
 		},
 	},
 	// 差分更新源: 浮动 latest Release(CI 每次发版把平铺更新文件传到这里, 客户端永远从这里拿最新)
